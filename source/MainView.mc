@@ -57,7 +57,8 @@ class MainView extends Ui.View {
             dc.setColor( Gfx.COLOR_GREEN, Gfx.COLOR_TRANSPARENT );
             dc.drawText(width/2, textY, font, status, Gfx.TEXT_JUSTIFY_CENTER);
         }
-
+        dc.setColor(Gfx.COLOR_WHITE, Gfx.COLOR_TRANSPARENT);
+		dc.drawText(width/2, textY + 25, font, mSensor.messageState, Gfx.TEXT_JUSTIFY_CENTER);
         // Draw page indicator
         mIndicator.draw(dc, mIndex);
     }

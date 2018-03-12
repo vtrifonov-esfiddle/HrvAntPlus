@@ -11,8 +11,8 @@ using Toybox.ActivityRecording as Recording;
 using Toybox.FitContributor as Fit;
 
 class HrvSensor extends Ant.GenericChannel {
-    const DEVICE_TYPE = 31;
-    const PERIOD = 8192;
+    const DEVICE_TYPE = 120;
+    const PERIOD = 8070;
     const MO2_FIELD_ID = 0;
 
     hidden var chanAssign;
@@ -23,7 +23,8 @@ class HrvSensor extends Ant.GenericChannel {
     var searching;
     var pastEventCount;
     var deviceCfg;
-
+	var messageState;
+	
     class MO2Data {
         var eventCount;
         var utcTimeSet;
@@ -201,6 +202,7 @@ class HrvSensor extends Ant.GenericChannel {
         var payload = msg.getPayload();
 
         if (Ant.MSG_ID_BROADCAST_DATA == msg.messageId) {
+        	me.messageState = "Broadcast data";
             if (MuscleOxygenDataPage.PAGE_NUMBER == (payload[0].toNumber() & 0xFF)) {
                 // Were we searching?
                 if (searching) {
@@ -224,15 +226,22 @@ class HrvSensor extends Ant.GenericChannel {
         } else if (Ant.MSG_ID_CHANNEL_RESPONSE_EVENT == msg.messageId) {
             if (Ant.MSG_ID_RF_EVENT == (payload[0] & 0xFF)) {
                 if (Ant.MSG_CODE_EVENT_CHANNEL_CLOSED == (payload[1] & 0xFF)) {
+                	me.messageState = "Chan cl, re-open";
                     // Channel closed, re-open
                     open();
                 } else if (Ant.MSG_CODE_EVENT_RX_FAIL_GO_TO_SEARCH  == (payload[1] & 0xFF)) {
+                	me.messageState = "Searching";
                     searching = true;
                     Ui.requestUpdate();
                 }
             } else {
+            	me.messageState = "Chan resp";
                 //It is a channel response.
             }
         }
+        else {
+        	me.messageState = "Unknown: " + msg.messageId;
+        }
+        Ui.requestUpdate();
     }
 }
