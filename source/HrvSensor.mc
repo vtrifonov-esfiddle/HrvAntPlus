@@ -24,95 +24,25 @@ class HrvSensor extends Ant.GenericChannel {
     var pastEventCount;
     var deviceCfg;
 	var messageState;
-	
-    class MO2Data {
-        var eventCount;
-        var utcTimeSet;
-        var supportsAntFs;
-        var measurementInterval;
-        var totalHemoConcentration;
-        var previousHemoPercent;
-        var currentHemoPercent;
+	var messageState2;       
+	 
+    class HrData {
+        var currentHeartRate;
 
         function initialize() {
-            eventCount = 0;
-            utcTimeSet = false;
-            supportsAntFs = false;
-            measurementInterval = 0;
-            totalHemoConcentration = 0;
-            previousHemoPercent = 0;
-            currentHemoPercent = 0;
+            currentHeartRate = 0;
         }
     }
-
-    class MuscleOxygenDataPage {
-        static const PAGE_NUMBER = 1;
-        static const AMBIENT_LIGHT_HIGH = 0x3FE;
-        static const INVALID_HEMO = 0xFFF;
-        static const INVALID_HEMO_PERCENT = 0x3FF;
-
-        enum {
-            INTERVAL_25 = 1,
-            INTERVAL_50 = 2,
-            INTERVAL_1 = 3,
-            INTERVAL_2 = 4
-        }
+    
+	class HeartRateDataPage {
+        static const INVALID_HR = 0x00;
 
         function parse(payload, data) {
-            data.eventCount = parseEventCount(payload);
-            data.utcTimeSet = parseTimeSet(payload);
-            data.supportsAntFs = parseSupportAntfs(payload);
-            data.measurementInterval = parseMeasureInterval(payload);
-            data.totalHemoConcentration = parseTotalHemo(payload);
-            data.previousHemoPercent = parsePrevHemo(payload);
-            data.currentHemoPercent = parseCurrentHemo(payload);
+            data.currentHeartRate = parseCurrentHR(payload);
         }
 
-        hidden function parseEventCount(payload) {
-           return payload[1];
-        }
-
-        hidden function parseTimeSet(payload) {
-            if (payload[2] & 0x1) {
-               return true;
-            } else {
-               return false;
-            }
-        }
-
-        hidden function parseSupportAntfs(payload) {
-            if (payload[3] & 0x1) {
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        hidden function parseMeasureInterval(payload) {
-           var interval = payload[3] >> 1;
-           var result = 0;
-           if (INTERVAL_25 == interval) {
-               result = .25;
-           } else if (INTERVAL_50 == interval) {
-                result = .50;
-           } else if (INTERVAL_1 == interval) {
-                result = 1;
-           } else if (INTERVAL_2 == interval) {
-                result = 2;
-           }
-           return result;
-        }
-
-        hidden function parseTotalHemo(payload) {
-           return ((payload[4] | ((payload[5] & 0x0F) << 8))) / 100f;
-        }
-
-        hidden function parsePrevHemo(payload) {
-           return ((payload[5] >> 4) | ((payload[6] & 0x3F) << 4)) / 10f;
-        }
-
-        hidden function parseCurrentHemo(payload) {
-           return ((payload[6] >> 6) | (payload[7] << 2)) / 10f;
+        hidden function parseCurrentHR(payload) {
+            return payload[7];
         }
     }
 
@@ -130,8 +60,7 @@ class HrvSensor extends Ant.GenericChannel {
         chanAssign = new Ant.ChannelAssignment(Ant.CHANNEL_TYPE_RX_NOT_TX, Ant.NETWORK_PLUS);
         GenericChannel.initialize(method(:onMessage), chanAssign);
         fitField = null;
-
-        // Set the configuration
+		// Set the configuration
         deviceCfg = new Ant.DeviceConfig( {
             :deviceNumber => 0,                 // Wildcard our search
             :deviceType => DEVICE_TYPE,
@@ -141,38 +70,25 @@ class HrvSensor extends Ant.GenericChannel {
             :searchTimeoutLowPriority => 10,    // Timeout in 25s
             :searchThreshold => 0} );           // Pair to all transmitting sensors
         GenericChannel.setDeviceConfig(deviceCfg);
-
-        data = new MO2Data();
+        data = new HrData();
         searching = true;
-        session = Recording.createSession({:name=>Ui.loadResource(Rez.Strings.sessionName)});
     }
-
+		
+	private function reconfig() {
+		
+	}
+		
     function open() {
         // Open the channel
         GenericChannel.open();
 
-        data = new MO2Data();
+        data = new HrData();
         pastEventCount = 0;
         searching = true;
-        session.start();
-
-        if(session has :createField) {
-            if( null == fitField ) {
-                fitField = session.createField
-                    (
-                    Ui.loadResource(Rez.Strings.fitFieldName),
-                    MO2_FIELD_ID,
-                    Fit.DATA_TYPE_FLOAT,
-                    { :mesgType=>Fit.MESG_TYPE_RECORD, :units=>Ui.loadResource(Rez.Strings.fitUnitsLabel)}
-                    );
-            }
-        }
     }
 
     function closeSensor() {
         GenericChannel.close();
-        session.stop();
-        session.save();
     }
 
     function setTime() {
@@ -196,33 +112,22 @@ class HrvSensor extends Ant.GenericChannel {
             GenericChannel.sendAcknowledge(message);
         }
     }
-
+	
     function onMessage(msg) {
         // Parse the payload
         var payload = msg.getPayload();
 
         if (Ant.MSG_ID_BROADCAST_DATA == msg.messageId) {
         	me.messageState = "Broadcast data";
-            if (MuscleOxygenDataPage.PAGE_NUMBER == (payload[0].toNumber() & 0xFF)) {
-                // Were we searching?
-                if (searching) {
-                    searching = false;
-                    // Update our device configuration primarily to see the device number of the sensor we paired to
-                    deviceCfg = GenericChannel.getDeviceConfig();
-                }
-                var dp = new MuscleOxygenDataPage();
-                dp.parse(msg.getPayload(), data);
-                // Check if the data has changed and we need to update the ui
-                if (pastEventCount != data.eventCount) {
-                    Ui.requestUpdate();
-                    pastEventCount = data.eventCount;
-
-                    if(session.isRecording() && (fitField != null)) {
-                        fitField.setData(data.totalHemoConcentration);
-                    }
-                }
-
+        	Ui.requestUpdate();
+            // Were we searching?
+            if (searching) {
+                searching = false;
+                // Update our device configuration primarily to see the device number of the sensor we paired to
+                deviceCfg = GenericChannel.getDeviceConfig();
             }
+            var dp = new HeartRateDataPage();
+            dp.parse(msg.getPayload(), data);
         } else if (Ant.MSG_ID_CHANNEL_RESPONSE_EVENT == msg.messageId) {
             if (Ant.MSG_ID_RF_EVENT == (payload[0] & 0xFF)) {
                 if (Ant.MSG_CODE_EVENT_CHANNEL_CLOSED == (payload[1] & 0xFF)) {
@@ -235,7 +140,10 @@ class HrvSensor extends Ant.GenericChannel {
                     Ui.requestUpdate();
                 }
             } else {
-            	me.messageState = "Chan resp";
+            	//75,0,255,31
+            	me.messageState = payload[0] + ", " + payload[1] + ", " + payload[2] + ", " + payload[3];
+            	//0,0,0,0
+            	me.messageState2 = payload[4] + ", " + payload[5] + ", " + payload[6] + ", " + payload[7]; 
                 //It is a channel response.
             }
         }

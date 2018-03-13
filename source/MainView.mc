@@ -40,7 +40,7 @@ class MainView extends Ui.View {
         var height = dc.getHeight();
         var margin = 20;
         var font = Gfx.FONT_SMALL;
-        var textY = (mIconY + mIcon.getHeight());
+        var textY = (mIconY);
         // Show icon
         dc.drawBitmap((width/2 - mIcon.getWidth()/2), mIconY, mIcon);
 
@@ -58,7 +58,13 @@ class MainView extends Ui.View {
             dc.drawText(width/2, textY, font, status, Gfx.TEXT_JUSTIFY_CENTER);
         }
         dc.setColor(Gfx.COLOR_WHITE, Gfx.COLOR_TRANSPARENT);
-		dc.drawText(width/2, textY + 25, font, mSensor.messageState, Gfx.TEXT_JUSTIFY_CENTER);
+		dc.drawText(width/2, height/2 + 5, font, mSensor.messageState, Gfx.TEXT_JUSTIFY_CENTER);
+		if (mSensor.messageState2 != null) {
+			dc.drawText(width/2, height/2 + 25, font, mSensor.messageState2, Gfx.TEXT_JUSTIFY_CENTER);
+		}
+		if (mSensor.data.currentHeartRate != null) {
+			dc.drawText(width/2, height - 30, font, mSensor.data.currentHeartRate, Gfx.TEXT_JUSTIFY_CENTER);
+		}
         // Draw page indicator
         mIndicator.draw(dc, mIndex);
     }

@@ -1,7 +1,7 @@
 <resources>
     <string id="AppName">HRV ANT+</string>
-    <string id="sessionName">MO2</string>
-    <string id="fitFieldName">MO2</string>
+    <string id="sessionName">HRV Ant+</string>
+    <string id="fitFieldName">HRV Test</string>
     <string id="fitChartLabel">Muscle Oxygen</string>
     <string id="fitDataLabel">Total Hemoglobin Concentration</string>
     <string id="fitUnitsLabel">g/dl</string>
